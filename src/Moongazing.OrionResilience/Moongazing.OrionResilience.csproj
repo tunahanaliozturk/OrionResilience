@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>OrionResilience</PackageId>
+    <Description>One opinionated resilience vocabulary for the Orion family: retry with jitter presets and timeout, executed over an OrionClock TimeProvider so every retry fast-forwards in tests, with OpenTelemetry by default. Configured through options, not fluent chains. AOT- and trim-clean.</Description>
+    <PackageTags>orion;resilience;retry;backoff;jitter;timeout;transient-fault;polly;dotnet</PackageTags>
+    <RootNamespace>Moongazing.OrionResilience</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Orion.Abstractions" Version="1.2.0" />
+    <PackageReference Include="OrionClock" Version="0.9.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Moongazing.OrionResilience.Tests" />
+  </ItemGroup>
+</Project>
