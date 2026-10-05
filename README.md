@@ -1,11 +1,16 @@
 <p align="center">
-  <img src="docs/logo.png" alt="OrionResilience" width="150" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo.png">
+    <img src="docs/icon.png" alt="OrionResilience logo" width="150">
+  </picture>
 </p>
 
 # OrionResilience
 
 [![CI/CD](https://github.com/tunahanaliozturk/OrionResilience/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/tunahanaliozturk/OrionResilience/actions/workflows/ci-cd.yml)
 [![NuGet](https://img.shields.io/nuget/v/OrionResilience.svg)](https://www.nuget.org/packages/OrionResilience/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0-purple.svg)
 
 One opinionated resilience vocabulary for the **Orion** family: retry with jitter presets and an overall timeout, executed over an `OrionClock` `TimeProvider` so every retry fast-forwards in tests, with OpenTelemetry by default and configured through options — not fluent chains.
 
@@ -13,10 +18,12 @@ Backoff is the most re-implemented 40 lines in any backend. Webhook delivery has
 
 OrionResilience is the opinionated preset layer. Retries and the timeout run on the family's [`OrionClock`](https://github.com/tunahanaliozturk/OrionClock), so the same fake clock that fast-forwards leases and TTLs fast-forwards a whole retry sequence — a 4-retry pipeline with a 5-second cap completes in-test in microseconds. Every execution emits the family's `orion.*` OpenTelemetry signals.
 
+![OrionResilience package: the app builds a ResiliencePipeline from ResiliencePipelineOptions and an OrionClock; the pipeline uses Backoff, ResilienceDiagnostics and Orion.Abstractions](docs/diagrams/overview.png)
+
 ## Features
 
 - **Retry + timeout on `OrionClock`** — all delays and the overall timeout run on the clock's `TimeProvider`. Under `FakeOrionClock` a retry sequence fast-forwards deterministically; no real waits, no flaky "wait for it" tests.
-- **`Backoff` presets** — `Exponential` (configurable factor), `DecorrelatedJitter` (overflow-safe, injectable sampler for deterministic tests), and `Constant`, each with an optional cap.
+- **`Backoff` presets** — `Exponential` (configurable factor), `DecorrelatedJitter` (overflow-safe, injectable sampler for deterministic tests), and `Constant`. `Exponential` and `Constant` take an optional cap; `DecorrelatedJitter` requires one.
 - **Declared retryability** — `RetryOn<TException>()` and `RetryOn(predicate)`, OR-composed; by default every exception is retryable until you narrow it. Retrying a non-idempotent operation is the caller's declared choice.
 - **Typed failures** — `TimeoutRejectedException` (distinct from caller cancellation, which always propagates unchanged) and `RetriesExhaustedException` (carries the attempt count, wraps the last fault).
 - **OpenTelemetry by default** — a `Moongazing.OrionResilience` meter/activity-source carrying `orion.resilience.attempts`, `orion.resilience.retry.delay` (ms), and `orion.resilience.outcome` (tagged with a frozen outcome), plus an execution span. Built on the family's `OrionInstrumentation` spine, so multi-tenant / multi-region labels stamp every measurement.
@@ -28,13 +35,17 @@ OrionResilience is the opinionated preset layer. Retries and the timeout run on 
 dotnet add package OrionResilience
 ```
 
+| Package | What it is |
+|---------|------------|
+| `OrionResilience` | `ResiliencePipeline`, `ResiliencePipelineOptions`, `Backoff`, `TimeoutRejectedException`, `RetriesExhaustedException` and `ResilienceDiagnostics`. Depends on `Orion.Abstractions` and `OrionClock`. |
+
 ## Quick start
 
 ```csharp
 using Moongazing.OrionClock;
 using Moongazing.OrionResilience;
 
-var clock = new OrionClock(); // the family clock; in DI, resolve IOrionClock / OrionClock
+var clock = new OrionClock(); // the family clock; in DI, resolve OrionClock (registered by AddOrionClock)
 
 var pipeline = new ResiliencePipeline(clock, new ResiliencePipelineOptions
 {
@@ -51,7 +62,20 @@ HttpResponseMessage response = await pipeline.ExecuteAsync(
     cancellationToken);
 ```
 
-`ExecuteAsync` returns the operation's result on success. It throws `TimeoutRejectedException` when the budget elapses, and `RetriesExhaustedException` (wrapping the last fault) when every retryable attempt fails. A caller-driven `OperationCanceledException` always propagates unchanged — it is never reclassified as a timeout.
+`ExecuteAsync` returns the operation's result on success. It throws `TimeoutRejectedException` when the budget elapses, and `RetriesExhaustedException` (wrapping the last fault) when an attempt fails with a retryable exception and no retry or `Timeout` budget is left. An exception that `ShouldRetry` rejects is rethrown unchanged. A caller-driven `OperationCanceledException` always propagates unchanged — it is never reclassified as a timeout.
+
+![ExecuteAsync: each failed attempt is checked for caller cancellation, the timeout, ShouldRetry and the remaining retries; a retryable fault waits Backoff.Next on the clock and runs the next attempt](docs/diagrams/execute-retry.png)
+
+### Options
+
+`ResiliencePipelineOptions`:
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `MaxRetries` | `0` | Retries after the first attempt; total attempts are `1 + MaxRetries`. With `0`, a retryable failure ends in `RetriesExhaustedException` after one attempt. |
+| `Backoff` | `Backoff.Exponential(200 ms, cap: 5 s)` | The delay before each retry (factor 2). |
+| `Timeout` | `Timeout.InfiniteTimeSpan` | Overall budget for all attempts and their waits. Must be positive or infinite. |
+| `ShouldRetry` | every exception | Retryability predicate. The first `RetryOn<TException>()` / `RetryOn(predicate)` call replaces the default; later calls OR onto it. |
 
 ## Testing — retries fast-forward, no real waits
 
@@ -90,10 +114,10 @@ Every execution records to a `Moongazing.OrionResilience` meter and activity sou
 | Signal | Kind | Meaning |
 |---|---|---|
 | `orion.resilience.attempts` | counter | Individual attempts executed (including the first). |
-| `orion.resilience.retry.delay` | histogram (ms) | The backoff waited before each retry, tagged with the 1-based attempt. |
-| `orion.resilience.outcome` | counter | Completed executions, tagged `outcome` = `success` / `failure` / `timeout` / `cancelled`. |
+| `orion.resilience.retry.delay` | histogram (ms) | The backoff waited before each retry, tagged `orion.attempt` with the 1-based attempt that failed. |
+| `orion.resilience.outcome` | counter | Completed executions, tagged `orion.outcome` = `success` / `failure` / `timeout` / `cancelled`. |
 
-Telemetry emits by default through a shared instance. Hand a `ResilienceDiagnostics` you own to the pipeline constructor when you want DI-managed lifetime or per-instance scoping.
+Each `ExecuteAsync` call is one `OrionResilience.execute` span, tagged with the outcome and the final attempt count. Telemetry emits by default through a shared instance. Hand a `ResilienceDiagnostics` you own to the pipeline constructor when you want DI-managed lifetime or per-instance scoping.
 
 ## Roadmap
 

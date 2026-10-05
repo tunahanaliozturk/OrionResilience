@@ -5,12 +5,16 @@
     <PackageTags>orion;resilience;retry;backoff;jitter;timeout;transient-fault;polly;dotnet</PackageTags>
     <RootNamespace>Moongazing.OrionResilience</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>
+    <PackageReadmeFile>docs/README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Orion.Abstractions" Version="1.2.0" />
     <PackageReference Include="OrionClock" Version="0.9.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs/README.md" Pack="true" PackagePath="docs/" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Moongazing.OrionResilience.Tests" />

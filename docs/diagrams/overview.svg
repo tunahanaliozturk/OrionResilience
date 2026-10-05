@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif; fill: #1e1b4b; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; fill: #475569; }
+    .label { font-size: 15px; font-weight: 600; }
+    .small { font-size: 12.5px; fill: #475569; }
+    .code { font-family: "Cascadia Code", Consolas, "SF Mono", monospace; font-size: 13px; fill: #3730a3; }
+    .edge { font-size: 12.5px; fill: #334155; }
+    .step { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2; }
+    .ext { fill: #f0f9ff; stroke: #0284c7; stroke-width: 2; }
+    .ok { fill: #ecfdf5; stroke: #059669; stroke-width: 2; }
+    .fail { fill: #fef2f2; stroke: #dc2626; stroke-width: 2; }
+    .decision { fill: #fffbeb; stroke: #d97706; stroke-width: 2; }
+    .note { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .lane { stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .flow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+    .flow.alt { stroke: #dc2626; stroke-dasharray: 6 4; marker-end: url(#arrow-fail); }
+    .flow.back { stroke-dasharray: 6 4; }
+    .badge { fill: #4f46e5; }
+    .badge-text { font-size: 12px; font-weight: 700; fill: #ffffff; }
+  </style>
+
+  <rect width="1200" height="500" fill="#ffffff"/>
+
+  <text class="title" x="40" y="52">OrionResilience - package and how the app reaches it</text>
+  <text class="subtitle" x="40" y="78">One package: the app builds a ResiliencePipeline from options and an OrionClock, then runs operations through ExecuteAsync.</text>
+
+  <!-- app -->
+  <rect class="step" x="40" y="120" width="230" height="116" rx="14"/>
+  <text class="label" x="155" y="160" text-anchor="middle">Your app</text>
+  <text class="small" x="155" y="184" text-anchor="middle">wraps a call that can</text>
+  <text class="small" x="155" y="204" text-anchor="middle">fail transiently</text>
+
+  <path class="flow" d="M270,178 L318,178"/>
+
+  <!-- options -->
+  <rect class="step" x="320" y="120" width="420" height="116" rx="14"/>
+  <text class="code" x="530" y="152" text-anchor="middle">new ResiliencePipeline(clock, options)</text>
+  <text class="small" x="530" y="178" text-anchor="middle">ResiliencePipelineOptions: MaxRetries 0, no Timeout,</text>
+  <text class="small" x="530" y="198" text-anchor="middle">Backoff Exponential 200 ms capped at 5 s,</text>
+  <text class="small" x="530" y="218" text-anchor="middle">ShouldRetry every exception until RetryOn narrows it</text>
+
+  <path class="flow" d="M740,178 L788,178"/>
+  <text class="edge" x="764" y="168" text-anchor="middle">builds</text>
+
+  <!-- pipeline -->
+  <rect class="step" x="790" y="120" width="370" height="116" rx="14"/>
+  <text class="label" x="975" y="158" text-anchor="middle">ResiliencePipeline</text>
+  <text class="code" x="975" y="184" text-anchor="middle">ExecuteAsync&lt;T&gt; / ExecuteAsync</text>
+  <text class="small" x="975" y="208" text-anchor="middle">retry, backoff and an overall timeout</text>
+
+  <!-- bus -->
+  <path class="flow" style="marker-end: none" d="M975,236 L975,262 M170,262 L1040,262"/>
+  <text class="edge" x="987" y="254">uses</text>
+  <path class="flow" d="M170,262 L170,298"/>
+  <path class="flow" d="M460,262 L460,298"/>
+  <path class="flow" d="M750,262 L750,298"/>
+  <path class="flow" d="M1040,262 L1040,298"/>
+
+  <!-- dependencies -->
+  <rect class="ext" x="40" y="300" width="260" height="90" rx="14"/>
+  <text class="code" x="170" y="332" text-anchor="middle">OrionClock</text>
+  <text class="small" x="170" y="355" text-anchor="middle">a TimeProvider (package OrionClock)</text>
+  <text class="small" x="170" y="375" text-anchor="middle">backoff waits and the timeout run on it</text>
+
+  <rect class="step" x="330" y="300" width="260" height="90" rx="14"/>
+  <text class="code" x="460" y="332" text-anchor="middle">Backoff</text>
+  <text class="small" x="460" y="355" text-anchor="middle">Exponential, DecorrelatedJitter,</text>
+  <text class="small" x="460" y="375" text-anchor="middle">Constant</text>
+
+  <rect class="step" x="620" y="300" width="260" height="90" rx="14"/>
+  <text class="code" x="750" y="332" text-anchor="middle">ResilienceDiagnostics</text>
+  <text class="small" x="750" y="355" text-anchor="middle">meter Moongazing.OrionResilience</text>
+  <text class="small" x="750" y="375" text-anchor="middle">attempts, retry.delay, outcome</text>
+
+  <rect class="ext" x="910" y="300" width="260" height="90" rx="14"/>
+  <text class="code" x="1040" y="332" text-anchor="middle">Orion.Abstractions</text>
+  <text class="small" x="1040" y="355" text-anchor="middle">OrionDeadline, OrionTelemetry,</text>
+  <text class="small" x="1040" y="375" text-anchor="middle">OrionInstrumentation</text>
+
+  <!-- note -->
+  <rect class="note" x="40" y="420" width="1130" height="50" rx="10"/>
+  <text class="small" x="60" y="450">Tests: pass a FakeOrionClock (package OrionClock.Testing) and call Advance; the backoff waits and the timeout fire with no real waiting.</text>
+</svg>
